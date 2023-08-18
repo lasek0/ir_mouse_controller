@@ -7,6 +7,8 @@
 #include <asm/termbits.h> // struct termbits
 #include <stdlib.h> // atoi
 #include <string.h> // memset
+#include <time.h>
+#include <stdint.h>
 
 void rel_x(int f, int x){
   struct input_event e;
@@ -134,12 +136,14 @@ int main(int argc, char** argv) {
   unsigned long long value = 0;
   unsigned long long prev_value = 0;
   double mouse_speed = 0;
+  uint64_t t1, t2;
+  
   for(;;){
     unsigned char bit_len = 0;
     read(t, &bit_len, 1);
     if(bit_len == 0) continue;
 
-    printf("bit_len: %d %.2x\n", bit_len, bit_len);
+    printf("bit_len: %d %.2x ", bit_len, bit_len);
     unsigned char byte_len = ceil(bit_len/8.0f);
     if(byte_len >= sizeof(buff)) byte_len = sizeof(buff);
 
@@ -159,47 +163,61 @@ int main(int argc, char** argv) {
       printf("u32 %.8x \n", (unsigned int)value);
     } else if(bit_len <= 64){
       printf("u64 %.16llx \n", (unsigned long long)value);
+    } else {
+      printf("\n");
     }
 
-    if(value == 1){
+    struct timespec tspec;
+    clock_gettime(CLOCK_REALTIME, &tspec);
+    t1 = (tspec.tv_sec&63)*1000 + tspec.tv_nsec / 1.0e6;
+    printf("%ld", t1 - t2);
+    if(value == 1 || (value == prev_value && (t1 - t2) < 200 ) ){
       value = prev_value;
       mouse_speed += mouse_speed * 0.17;
     }else{
       mouse_speed = 10.0;
     }
+    t2 = t1;
     prev_value = value;
 
-    if(value == 0x0000ff9a){ // exit (turn off button)
-      break;
-    }
-    if(value == 0x0000ff60){ // up
+    if(value == 0x0001400401005253){ // up
       rel_y(f, -(int)mouse_speed);
     }
-    if(value == 0x0000ff68){ // down
+    if(value == 0x000140040100d2d3){ // down
       rel_y(f, (int)mouse_speed);
     }
-    if(value == 0x0000ff5a){ // left
+    if(value == 0x0001400401007273){ // left
       rel_x(f, -(int)mouse_speed);
     }
-    if(value == 0x0000ffd8){ //right
+    if(value == 0x000140040100f2f3){ // right
       rel_x(f, (int)mouse_speed);
     }
-    if(value == 0x0000ffa0){ // wheel up
+
+    if(value == 0x0001400409002c25){ // wheel up
       wheel(f, 1);
     }
-    if(value == 0x0000ffa8){ // wheel down
+    if(value == 0x000140040900aca5){ // wheel down
       wheel(f, -1);
     }
-    if(value == 0x0000ff8a){ // left btn click
+
+    if(value == 0x0001400409000009){ // left btn click
       btn_left(f, 1);
       btn_left(f, 0);
     }
-    if(value == 0x0000ff88){ // right btn click
+    if(value == 0x0001400409005059){ // right btn click
       btn_right(f, 1);
       btn_right(f, 0);
     }
 
+    if(value == 0x000140040d00bcb1){ // exit (turn off button)
+      break;
+    }
+
   }
+
+
+
+
 
   
 
